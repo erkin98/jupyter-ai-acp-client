@@ -51,6 +51,8 @@ from jupyterlab_chat.ychat import YChat
 from typing import Awaitable, ClassVar
 from asyncio.subprocess import Process
 
+from .terminal_manager import TerminalManager
+
 async def queue_to_iterator(queue: asyncio.Queue[str], sentinel: str = "__end__") -> AsyncGenerator[str]:
     """Convert an asyncio queue to an async iterator."""
     while True:
@@ -71,6 +73,7 @@ class JaiAcpClient(Client):
     event_loop: asyncio.AbstractEventLoop
     _personas_by_session: dict[str, BasePersona]
     _queues_by_session: dict[str, asyncio.Queue[str]]
+    _terminal_manager: TerminalManager
 
     def __init__(self, *args, agent_subprocess: Awaitable[Process], event_loop: asyncio.AbstractEventLoop, **kwargs):
         """
@@ -87,6 +90,7 @@ class JaiAcpClient(Client):
         self.event_loop = event_loop
         self._personas_by_session = {}
         self._queues_by_session = {}
+        self._terminal_manager = TerminalManager(event_loop)
         super().__init__(*args, **kwargs)
     
 
@@ -97,6 +101,7 @@ class JaiAcpClient(Client):
             protocol_version=PROTOCOL_VERSION,
             client_capabilities=ClientCapabilities(
                 fs=FileSystemCapability(read_text_file=True, write_text_file=True),
+                terminal=True,
             ),
             client_info=Implementation(name="Jupyter AI", title="Jupyter AI ACP Client", version="0.1.0"),
         )
@@ -299,25 +304,51 @@ class JaiAcpClient(Client):
         output_byte_limit: int | None = None,
         **kwargs: Any,
     ) -> CreateTerminalResponse:
-        raise RequestError.method_not_found("terminal/create")
+        return await self._terminal_manager.create_terminal(
+            command=command,
+            session_id=session_id,
+            args=args,
+            cwd=cwd,
+            env=env,
+            output_byte_limit=output_byte_limit,
+            **kwargs,
+        )
 
-    async def terminal_output(self, session_id: str, terminal_id: str, **kwargs: Any) -> TerminalOutputResponse:
-        raise RequestError.method_not_found("terminal/output")
+    async def terminal_output(
+        self, session_id: str, terminal_id: str, **kwargs: Any
+    ) -> TerminalOutputResponse:
+        return await self._terminal_manager.terminal_output(
+            session_id=session_id,
+            terminal_id=terminal_id,
+            **kwargs,
+        )
 
     async def release_terminal(
         self, session_id: str, terminal_id: str, **kwargs: Any
     ) -> ReleaseTerminalResponse | None:
-        raise RequestError.method_not_found("terminal/release")
+        return await self._terminal_manager.release_terminal(
+            session_id=session_id,
+            terminal_id=terminal_id,
+            **kwargs,
+        )
 
     async def wait_for_terminal_exit(
         self, session_id: str, terminal_id: str, **kwargs: Any
     ) -> WaitForTerminalExitResponse:
-        raise RequestError.method_not_found("terminal/wait_for_exit")
+        return await self._terminal_manager.wait_for_terminal_exit(
+            session_id=session_id,
+            terminal_id=terminal_id,
+            **kwargs,
+        )
 
     async def kill_terminal(
         self, session_id: str, terminal_id: str, **kwargs: Any
     ) -> KillTerminalCommandResponse | None:
-        raise RequestError.method_not_found("terminal/kill")
+        return await self._terminal_manager.kill_terminal(
+            session_id=session_id,
+            terminal_id=terminal_id,
+            **kwargs,
+        )
 
     async def ext_method(self, method: str, params: dict) -> dict:
         raise RequestError.method_not_found(method)
