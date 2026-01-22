@@ -7,7 +7,8 @@ except ImportError:
     import warnings
     warnings.warn("Importing 'jupyter_ai_acp_client' outside a proper installation.")
     __version__ = "dev"
-from .routes import setup_route_handlers
+
+from .extension_app import JaiAcpClientExtension
 
 
 def _jupyter_labextension_paths():
@@ -19,18 +20,6 @@ def _jupyter_labextension_paths():
 
 def _jupyter_server_extension_points():
     return [{
-        "module": "jupyter_ai_acp_client"
+        "module": "jupyter_ai_acp_client",
+        "app": JaiAcpClientExtension
     }]
-
-
-def _load_jupyter_server_extension(server_app):
-    """Registers the API handler to receive HTTP requests from the frontend extension.
-
-    Parameters
-    ----------
-    server_app: jupyterlab.labapp.LabApp
-        JupyterLab application instance
-    """
-    setup_route_handlers(server_app.web_app)
-    name = "jupyter_ai_acp_client"
-    server_app.log.info(f"Registered {name} server extension")
