@@ -117,10 +117,18 @@ class BaseAcpPersona(BasePersona):
             prompt=prompt,
         )
 
-    async def shutdown(self):
+    def shutdown(self):
+        # TODO: allow shutdown() to be async
+        self.event_loop.create_task(self._shutdown())
+
+    async def _shutdown(self):
         self.log.info(f"Closing ACP agent and client for '{self.__class__.__name__}'.")
         client = await self.get_client()
-        await client.close()
+        conn = await client.get_connection()
+        await conn.close()
         subprocess = await self.get_agent_subprocess()
-        subprocess.kill()
+        try:
+            subprocess.kill()
+        except ProcessLookupError:
+            pass
         self.log.info(f"Completed closed ACP agent and client for '{self.__class__.__name__}'.")
