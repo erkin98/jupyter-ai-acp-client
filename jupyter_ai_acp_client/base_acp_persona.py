@@ -1,27 +1,11 @@
 from jupyter_ai_persona_manager import BasePersona
 from jupyterlab_chat.models import Message
-from pydantic import BaseModel
 import asyncio
 from asyncio.subprocess import Process
 from typing import Awaitable, ClassVar
 from acp import NewSessionResponse
-from acp.schema import TextContentBlock, ResourceContentBlock
 
 from .default_acp_client import JaiAcpClient
-
-
-class AcpPersonaDefinition(BaseModel):
-    name: str
-    """
-    The name of the ACP agent persona, e.g. 'Gemini'.
-    """
-
-    executable: list[str]
-    """
-    The command to start the ACP agent subprocess, as a list of strings.
-
-    For example: `['gemini', '--experimental-acp']`
-    """
 
 
 class BaseAcpPersona(BasePersona):
