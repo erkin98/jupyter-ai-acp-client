@@ -62,6 +62,9 @@ npm install -g @zed-industries/claude-code-acp
 ## Requirements
 
 - JupyterLab >= 4.0.0
+- `jupyter-ai-persona-manager>=0.0.5`
+- `agent_client_protocol`
+- Optional: `claude-code-acp`
 
 ## Install
 
