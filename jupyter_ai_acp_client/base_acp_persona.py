@@ -38,6 +38,10 @@ class BaseAcpPersona(BasePersona):
     """
 
     _acp_slash_commands: list[AvailableCommand]
+    """
+    List of slash commands broadcast by the ACP agent in the current session.
+    This attribute is set automatically by the default ACP client.
+    """
 
     def __init__(self, *args, executable: list[str], **kwargs):
         super().__init__(*args, **kwargs)

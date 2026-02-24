@@ -42,10 +42,12 @@ from acp.schema import (
     UserMessageChunk,
     WaitForTerminalExitResponse,
     WriteTextFileResponse,
+    McpServerStdio as AcpMcpServerStdio,
+    HttpMcpServer as AcpMcpServerHttp,
     AllowedOutcome
 )
-from jupyter_ai_persona_manager import BasePersona
-from jupyterlab_chat.models import Message
+from jupyter_ai_persona_manager import BasePersona, McpServerStdio
+from jupyterlab_chat.models import Message, NewMessage
 from jupyterlab_chat.utils import find_mentions
 from asyncio.subprocess import Process
 
@@ -68,7 +70,13 @@ class JaiAcpClient(Client):
     _tool_call_manager: ToolCallManager
     _prompt_locks_by_session: dict[str, asyncio.Lock]
 
-    def __init__(self, *args, agent_subprocess: Awaitable[Process], event_loop: asyncio.AbstractEventLoop, **kwargs):
+    def __init__(
+            self,
+            *args,
+            agent_subprocess: Awaitable[Process],
+            event_loop: asyncio.AbstractEventLoop,
+            **kwargs,
+    ):
         """
         :param agent_subprocess: The ACP agent subprocess
         (`asyncio.subprocess.Process`) assigned to this client.
@@ -111,8 +119,24 @@ class JaiAcpClient(Client):
         `BasePersona` instance.
         """
         conn = await self.get_connection()
+
+        # read MCP settings from persona
+        mcp_settings = persona.get_mcp_settings()
+
+        # Parse MCP servers from `.jupyter/mcp_settings.json`.
+        # We need to cast each from the PersonaManager model to the ACP model
+        # here. The models are the exact same, but we still need to do this to
+        # avoid a Pydantic error. 
+        mcp_servers: list[AcpMcpServerStdio | AcpMcpServerHttp] = []
+        if mcp_settings:
+            for mcp_server in mcp_settings.mcp_servers:
+                if isinstance(mcp_server, McpServerStdio):
+                    mcp_servers.append(AcpMcpServerStdio(**mcp_server.model_dump()))
+                else:
+                    mcp_servers.append(AcpMcpServerHttp(**mcp_server.model_dump()))
+
         # TODO: change this to Jupyter preferred dir
-        session = await conn.new_session(mcp_servers=[], cwd=os.getcwd())
+        session = await conn.new_session(mcp_servers=mcp_servers, cwd=os.getcwd())
         self._personas_by_session[session.session_id] = persona
         return session
 
