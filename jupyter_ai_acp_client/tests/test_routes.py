@@ -2,6 +2,7 @@
 
 from tornado.httpclient import HTTPClientError
 
+
 async def test_slash_commands_route_no_chat(jp_fetch):
     """
     Expects that the /ai/acp/slash_commands route returns a 400 when no ?chat_id

@@ -203,9 +203,7 @@ class TerminalManager:
                 {"command": f"permission denied: {command}"}
             )
         except OSError as e:
-            raise RequestError.internal_error(
-                {"command": command, "error": str(e)}
-            )
+            raise RequestError.internal_error({"command": command, "error": str(e)})
 
         terminal_id = str(uuid.uuid4())
         info = TerminalInfo(
@@ -324,7 +322,8 @@ class TerminalManager:
         Should be called when a session ends.
         """
         terminal_ids = [
-            tid for tid, info in self._terminals.items()
+            tid
+            for tid, info in self._terminals.items()
             if info.session_id == session_id
         ]
         for terminal_id in terminal_ids:

@@ -114,11 +114,17 @@ class BaseAcpPersona(BasePersona):
 
         # Ensure each subclass has its own subprocess and client by checking if the
         # class variable is defined directly on this class (not inherited)
-        if '_subprocess_future' not in self.__class__.__dict__ or self.__class__._subprocess_future is None:
+        if (
+            "_subprocess_future" not in self.__class__.__dict__
+            or self.__class__._subprocess_future is None
+        ):
             self.__class__._subprocess_future = self.event_loop.create_task(
                 self._init_agent_subprocess()
             )
-        if '_client_future' not in self.__class__.__dict__ or self.__class__._client_future is None:
+        if (
+            "_client_future" not in self.__class__.__dict__
+            or self.__class__._client_future is None
+        ):
             self.__class__._client_future = self.event_loop.create_task(
                 self._init_client()
             )
@@ -140,10 +146,12 @@ class BaseAcpPersona(BasePersona):
 
     async def _init_client(self) -> JaiAcpClient:
         agent_subprocess = await self.get_agent_subprocess()
-        client = JaiAcpClient(agent_subprocess=agent_subprocess, event_loop=self.event_loop)
+        client = JaiAcpClient(
+            agent_subprocess=agent_subprocess, event_loop=self.event_loop
+        )
         self.log.info(f"Initialized ACP client for '{self.__class__.__name__}'.")
         return client
-    
+
     async def _init_client_session(self) -> NewSessionResponse:
         client = await self.get_client()
         session = await client.create_session(persona=self)
@@ -158,26 +166,26 @@ class BaseAcpPersona(BasePersona):
         Safely returns the ACP agent subprocess for this persona.
         """
         return await self.__class__._subprocess_future
-    
+
     async def get_client(self) -> JaiAcpClient:
         """
         Safely returns the ACP client for this persona.
         """
         return await self.__class__._client_future
-    
+
     async def get_session(self) -> NewSessionResponse:
         """
         Safely returns the ACP client session for this chat.
         """
         return await self._client_session_future
-    
+
     async def get_session_id(self) -> str:
         """
         Safely returns the ACP client ID assigned to this chat.
         """
         session = await self._client_session_future
         return session.session_id
-    
+
     async def process_message(self, message: Message) -> None:
         """
         A default implementation for the `BasePersona.process_message()` method
@@ -212,7 +220,7 @@ class BaseAcpPersona(BasePersona):
             prompt=prompt,
             attachments=attachments,
         )
-    
+
     @property
     def acp_slash_commands(self) -> list[AvailableCommand]:
         """
@@ -224,7 +232,7 @@ class BaseAcpPersona(BasePersona):
         `AvailableCommandsUpdate` payload from the ACP agent.
         """
         return self._acp_slash_commands
-    
+
     @acp_slash_commands.setter
     def acp_slash_commands(self, commands: list[AvailableCommand]):
         self.log.info(
@@ -246,4 +254,6 @@ class BaseAcpPersona(BasePersona):
             subprocess.kill()
         except ProcessLookupError:
             pass
-        self.log.info(f"Completed closed ACP agent and client for '{self.__class__.__name__}'.")
+        self.log.info(
+            f"Completed closed ACP agent and client for '{self.__class__.__name__}'."
+        )

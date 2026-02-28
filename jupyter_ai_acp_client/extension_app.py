@@ -20,7 +20,7 @@ class JaiAcpClientExtension(ExtensionApp):
         # # copied to `self.serverapp.web_app.settings` after this method returns
         # if 'jupyter-ai' not in self.settings:
         #     self.settings['jupyter-ai'] = {}
-        
+
         # self.settings['jupyter-ai']['acp-client']
         return
 

@@ -145,7 +145,9 @@ class TestProcessMessageAttachments:
 
     async def test_file_attachment_selection_reconstructed_as_typed_object(self):
         """M-1: Nested selection field should be AttachmentSelection, not a plain dict."""
-        selection = AttachmentSelection(start=(0, 0), end=(2, 10), content="def foo():\n    pass")
+        selection = AttachmentSelection(
+            start=(0, 0), end=(2, 10), content="def foo():\n    pass"
+        )
         fa = FileAttachment(value="code.py", type="file", selection=selection)
         persona, client = make_persona(attachments_map={"att-1": fa})
         msg = make_message("@claude review this", attachment_ids=["att-1"])
@@ -155,9 +157,9 @@ class TestProcessMessageAttachments:
         args = client.prompt_and_reply.call_args
         resolved = args.kwargs["attachments"][0]
         assert isinstance(resolved, FileAttachment)
-        assert isinstance(resolved.selection, AttachmentSelection), (
-            f"Expected AttachmentSelection, got {type(resolved.selection)}"
-        )
+        assert isinstance(
+            resolved.selection, AttachmentSelection
+        ), f"Expected AttachmentSelection, got {type(resolved.selection)}"
         assert resolved.selection == selection
 
     async def test_notebook_attachment_cells_reconstructed_as_typed_objects(self):
@@ -180,12 +182,12 @@ class TestProcessMessageAttachments:
         assert resolved.cells is not None
         assert len(resolved.cells) == 1
         reconstructed_cell = resolved.cells[0]
-        assert isinstance(reconstructed_cell, NotebookAttachmentCell), (
-            f"Expected NotebookAttachmentCell, got {type(reconstructed_cell)}"
-        )
+        assert isinstance(
+            reconstructed_cell, NotebookAttachmentCell
+        ), f"Expected NotebookAttachmentCell, got {type(reconstructed_cell)}"
         assert reconstructed_cell.id == "cell-abc"
         assert reconstructed_cell.input_type == "code"
-        assert isinstance(reconstructed_cell.selection, AttachmentSelection), (
-            f"Expected AttachmentSelection in cell.selection, got {type(reconstructed_cell.selection)}"
-        )
+        assert isinstance(
+            reconstructed_cell.selection, AttachmentSelection
+        ), f"Expected AttachmentSelection in cell.selection, got {type(reconstructed_cell.selection)}"
         assert reconstructed_cell.selection == cell_selection
