@@ -1,14 +1,18 @@
-from jupyter_ai_persona_manager import BasePersona
-from jupyterlab_chat.models import Message
 import asyncio
+import logging
 import sys
 from asyncio import Task
 from asyncio.subprocess import Process
 from typing import Awaitable, ClassVar
+
 from acp import NewSessionResponse
 from acp.schema import AvailableCommand
+from jupyter_ai_persona_manager import BasePersona
+from jupyterlab_chat.models import Message
 
 from .default_acp_client import JaiAcpClient
+
+log = logging.getLogger(__name__)
 
 
 class BaseAcpPersona(BasePersona):
@@ -173,11 +177,26 @@ class BaseAcpPersona(BasePersona):
         client = await self.get_client()
         session_id = await self.get_session_id()
 
-        # TODO: add attachments!
         prompt = message.body.replace("@" + self.as_user().mention_name, "").strip()
+
+        # Resolve attachments from YChat by ID
+        attachments: list[dict] | None = None
+        if message.attachments:
+            all_attachments = self.ychat.get_attachments()
+            resolved = []
+            for aid in message.attachments:
+                raw = all_attachments.get(aid)
+                if raw is None:
+                    log.warning("Attachment %s not found in YChat", aid)
+                    continue
+                resolved.append(raw)
+            attachments = resolved or None
+
         await client.prompt_and_reply(
             session_id=session_id,
             prompt=prompt,
+            attachments=attachments,
+            root_dir=self.parent.root_dir,
         )
     
     @property
