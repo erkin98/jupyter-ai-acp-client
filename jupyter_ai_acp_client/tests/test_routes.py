@@ -20,7 +20,7 @@ async def test_slash_commands_route_no_chat(jp_fetch):
         assert e.code == 400
 
 
-def _make_handler_and_serverapp(personas: dict, persona_mention_name: str = ""):
+def _make_handler_and_serverapp(personas: dict):
     """Create a mock AcpSlashCommandsHandler with controllable personas."""
     app = MagicMock()
     request = MagicMock()
@@ -64,7 +64,7 @@ class TestPersonaNotFound:
         mock_persona.as_user.return_value.mention_name = "other-bot"
         personas = {"p1": mock_persona}
 
-        handler, _ = _make_handler_and_serverapp(personas, persona_mention_name="nonexistent")
+        handler, _ = _make_handler_and_serverapp(personas)
 
         with patch.object(handler, "get_argument", return_value="chat.chat"):
             with patch.object(handler, "get_current_user", return_value={"name": "test"}):
@@ -81,7 +81,7 @@ class TestPersonaNotFound:
         p2.as_user.return_value.mention_name = "bot-b"
         personas = {"p1": p1, "p2": p2}
 
-        handler, _ = _make_handler_and_serverapp(personas, persona_mention_name="bot-c")
+        handler, _ = _make_handler_and_serverapp(personas)
 
         with patch.object(handler, "get_argument", return_value="chat.chat"):
             with patch.object(handler, "get_current_user", return_value={"name": "test"}):

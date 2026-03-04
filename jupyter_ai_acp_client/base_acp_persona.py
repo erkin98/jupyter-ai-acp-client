@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import sys
 from asyncio import Task
 from asyncio.subprocess import Process
@@ -12,7 +11,6 @@ from jupyterlab_chat.models import Message
 
 from .default_acp_client import JaiAcpClient
 
-log = logging.getLogger(__name__)
 
 
 class BaseAcpPersona(BasePersona):
@@ -187,7 +185,7 @@ class BaseAcpPersona(BasePersona):
             for aid in message.attachments:
                 raw = all_attachments.get(aid)
                 if raw is None:
-                    log.warning("Attachment %s not found in YChat", aid)
+                    self.log.warning("Attachment %s not found in YChat", aid)
                     continue
                 resolved.append(raw)
             attachments = resolved or None

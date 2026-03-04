@@ -93,10 +93,6 @@ before-build-npm = [
 ]
 before-build-python = ["jlpm clean:all"]
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
-
 [tool.check-wheel-contents]
 ignore = ["W002"]
 
