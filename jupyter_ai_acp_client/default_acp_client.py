@@ -49,7 +49,7 @@ from acp.schema import (
     AllowedOutcome
 )
 from jupyter_ai_persona_manager import BasePersona, McpServerStdio
-from jupyterlab_chat.models import Message
+from jupyterlab_chat.models import FileAttachment, Message, NotebookAttachment
 from jupyterlab_chat.utils import find_mentions
 from asyncio.subprocess import Process
 
@@ -59,6 +59,7 @@ from .tool_call_renderer import extract_diffs
 from .permission_manager import PermissionManager
 
 import traceback as tb_mod
+
 
 class JaiAcpClient(Client):
     """
@@ -150,7 +151,7 @@ class JaiAcpClient(Client):
         self,
         session_id: str,
         prompt: str,
-        attachments: list[dict] | None = None,
+        attachments: list[FileAttachment | NotebookAttachment] | None = None,
         root_dir: str | None = None,
     ) -> PromptResponse:
         """
@@ -158,10 +159,9 @@ class JaiAcpClient(Client):
         to the assigned ACP server. This method writes back to the chat by
         handling all events in session_update().
 
-        Attachments are plain dicts from ``YChat.get_attachments()``, keyed by
-        ``value`` (relative path), ``type`` (``"file"`` or ``"notebook"``), and
-        optionally ``mimetype``.  When *root_dir* is provided the relative path
-        is resolved to an absolute ``file://`` URI.
+        Attachments are typed ``FileAttachment`` or ``NotebookAttachment``
+        instances deserialized from YChat.  When *root_dir* is provided the
+        relative path is resolved to an absolute ``file://`` URI.
 
         Uses a per-session lock to serialize concurrent calls, preventing
         state corruption if multiple messages arrive before the first completes.
@@ -197,8 +197,7 @@ class JaiAcpClient(Client):
                 ]
                 if attachments:
                     for att in attachments:
-                        att_value = att.get("value", "")
-                        att_type = att.get("type", "file")
+                        att_value = att.value
 
                         # Resolve to absolute file:// URI when root_dir is available
                         if root_dir and att_value:
@@ -217,8 +216,8 @@ class JaiAcpClient(Client):
                             uri = att_value
 
                         # Determine MIME type: explicit value or notebook default
-                        mime_type = att.get("mimetype")
-                        if mime_type is None and att_type == "notebook":
+                        mime_type = getattr(att, "mimetype", None)
+                        if mime_type is None and isinstance(att, NotebookAttachment):
                             mime_type = "application/x-ipynb+json"
 
                         content_blocks.append(

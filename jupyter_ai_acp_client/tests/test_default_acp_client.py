@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 from acp.schema import ResourceContentBlock, TextContentBlock
+from jupyterlab_chat.models import FileAttachment, NotebookAttachment
 
 from jupyter_ai_acp_client.default_acp_client import JaiAcpClient
 
@@ -59,7 +60,7 @@ class TestPromptAndReplyContentBlocks:
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="check this",
-            attachments=[{"value": "src/main.py", "type": "file", "mimetype": "text/x-python"}],
+            attachments=[FileAttachment(value="src/main.py", mimetype="text/x-python")],
             root_dir="/home/user/notebooks",
         )
 
@@ -77,26 +78,26 @@ class TestPromptAndReplyContentBlocks:
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="review",
-            attachments=[{"value": "analysis.ipynb", "type": "notebook"}],
+            attachments=[NotebookAttachment(value="analysis.ipynb")],
             root_dir="/home/user",
         )
 
         blocks = conn.prompt.call_args.kwargs["prompt"]
         assert blocks[1].mime_type == "application/x-ipynb+json"
 
-    async def test_notebook_explicit_mimetype_preserved(self):
-        """When notebook has explicit mimetype, it is preserved."""
+    async def test_file_explicit_mimetype_preserved(self):
+        """When file has explicit mimetype, it is preserved."""
         client, conn, _ = _make_client_and_persona()
 
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="review",
-            attachments=[{"value": "nb.ipynb", "type": "notebook", "mimetype": "custom/type"}],
+            attachments=[FileAttachment(value="data.json", mimetype="application/json")],
             root_dir="/home/user",
         )
 
         blocks = conn.prompt.call_args.kwargs["prompt"]
-        assert blocks[1].mime_type == "custom/type"
+        assert blocks[1].mime_type == "application/json"
 
     async def test_multiple_attachments_in_order(self):
         """Multiple attachments produce ResourceContentBlocks in order after text."""
@@ -106,8 +107,8 @@ class TestPromptAndReplyContentBlocks:
             session_id=SESSION_ID,
             prompt="review all",
             attachments=[
-                {"value": "a.py", "type": "file"},
-                {"value": "b.ipynb", "type": "notebook"},
+                FileAttachment(value="a.py"),
+                NotebookAttachment(value="b.ipynb"),
             ],
             root_dir="/tmp",
         )
@@ -152,7 +153,7 @@ class TestPromptAndReplyContentBlocks:
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="check",
-            attachments=[{"value": "", "type": "file"}],
+            attachments=[FileAttachment(value="")],
         )
 
         blocks = conn.prompt.call_args.kwargs["prompt"]
@@ -165,7 +166,7 @@ class TestPromptAndReplyContentBlocks:
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="check",
-            attachments=[{"value": "data.csv", "type": "file"}],
+            attachments=[FileAttachment(value="data.csv")],
             root_dir="/tmp",
         )
 
@@ -179,7 +180,7 @@ class TestPromptAndReplyContentBlocks:
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="check",
-            attachments=[{"value": "subdir/file.py", "type": "file"}],
+            attachments=[FileAttachment(value="subdir/file.py")],
             root_dir=None,
         )
 
@@ -193,7 +194,7 @@ class TestPromptAndReplyContentBlocks:
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="check",
-            attachments=[{"value": "test.py", "type": "file"}],
+            attachments=[FileAttachment(value="test.py")],
             root_dir="/home/user",
         )
 
@@ -207,9 +208,10 @@ class TestPromptAndReplyContentBlocks:
         await client.prompt_and_reply(
             session_id=SESSION_ID,
             prompt="check",
-            attachments=[{"value": "../../../etc/passwd", "type": "file"}],
+            attachments=[FileAttachment(value="../../../etc/passwd")],
             root_dir="/home/user/notebooks",
         )
 
         blocks = conn.prompt.call_args.kwargs["prompt"]
         assert blocks[1].uri == "../../../etc/passwd"
+

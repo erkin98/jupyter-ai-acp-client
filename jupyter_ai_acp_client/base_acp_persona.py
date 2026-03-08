@@ -2,14 +2,80 @@ import asyncio
 import sys
 from asyncio import Task
 from asyncio.subprocess import Process
+from dataclasses import fields as dataclass_fields
 from typing import Awaitable, ClassVar
 
 from acp import NewSessionResponse
 from acp.schema import AvailableCommand
 from jupyter_ai_persona_manager import BasePersona
-from jupyterlab_chat.models import Message
+from jupyterlab_chat.models import (
+    AttachmentSelection,
+    FileAttachment,
+    Message,
+    NotebookAttachment,
+    NotebookAttachmentCell,
+)
 
 from .default_acp_client import JaiAcpClient
+
+
+def _reconstruct_selection(raw: dict) -> AttachmentSelection | None:
+    """Reconstruct an AttachmentSelection, converting CRDT list artifacts to tuples."""
+    start = raw.get("start")
+    end = raw.get("end")
+    content = raw.get("content")
+    if start is None or end is None or content is None:
+        return None
+    return AttachmentSelection(
+        start=tuple(start) if isinstance(start, list) else start,
+        end=tuple(end) if isinstance(end, list) else end,
+        content=content,
+    )
+
+
+def _deserialize_attachment(raw: dict) -> FileAttachment | NotebookAttachment | None:
+    """Reconstruct a typed attachment from a raw dict returned by YChat.
+
+    YChat stores attachments as plain dicts (via ``dataclasses.asdict()`` →
+    pycrdt Map → ``to_py()``).  This function reconstructs the original
+    dataclass, filtering unknown keys for forward-compatibility and
+    recursively rebuilding nested dataclasses.
+    """
+    att_type = raw.get("type")
+    if att_type == "file":
+        cls = FileAttachment
+    elif att_type == "notebook":
+        cls = NotebookAttachment
+    else:
+        return None
+
+    accepted_keys = {f.name for f in dataclass_fields(cls)}
+    filtered = {k: v for k, v in raw.items() if k in accepted_keys}
+
+    # Reconstruct nested AttachmentSelection
+    if isinstance(filtered.get("selection"), dict):
+        filtered["selection"] = _reconstruct_selection(filtered["selection"])
+
+    # Reconstruct nested NotebookAttachmentCell list
+    if isinstance(filtered.get("cells"), list):
+        cell_keys = {f.name for f in dataclass_fields(NotebookAttachmentCell)}
+        reconstructed = []
+        for raw_cell in filtered["cells"]:
+            if not isinstance(raw_cell, dict):
+                continue
+            cell_data = {k: v for k, v in raw_cell.items() if k in cell_keys}
+            if isinstance(cell_data.get("selection"), dict):
+                cell_data["selection"] = _reconstruct_selection(cell_data["selection"])
+            try:
+                reconstructed.append(NotebookAttachmentCell(**cell_data))
+            except TypeError:
+                continue
+        filtered["cells"] = reconstructed or None
+
+    try:
+        return cls(**filtered)
+    except TypeError:
+        return None
 
 
 
@@ -178,17 +244,23 @@ class BaseAcpPersona(BasePersona):
 
         prompt = message.body.replace("@" + self.as_user().mention_name, "").strip()
 
-        # Resolve attachments from YChat by ID
-        attachments: list[dict] | None = None
+        # Resolve attachments from YChat by ID and deserialize to typed dataclasses
+        attachments: list[FileAttachment | NotebookAttachment] | None = None
         if message.attachments:
             all_attachments = self.ychat.get_attachments()
-            resolved = []
+            resolved: list[FileAttachment | NotebookAttachment] = []
             for aid in message.attachments:
                 raw = all_attachments.get(aid)
                 if raw is None:
                     self.log.warning("Attachment %s not found in YChat", aid)
                     continue
-                resolved.append(raw)
+                att = _deserialize_attachment(raw)
+                if att is None:
+                    self.log.warning(
+                        "Cannot deserialize attachment %s (type=%s)", aid, raw.get("type")
+                    )
+                    continue
+                resolved.append(att)
             attachments = resolved or None
 
         await client.prompt_and_reply(
