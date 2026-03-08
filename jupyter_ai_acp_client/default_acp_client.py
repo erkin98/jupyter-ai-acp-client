@@ -61,6 +61,42 @@ from .permission_manager import PermissionManager
 import traceback as tb_mod
 
 
+def _build_attachment_description(
+    att: FileAttachment | NotebookAttachment,
+) -> str | None:
+    """Build a human-readable description from attachment selection/cell info.
+
+    CodeMirror positions are 0-indexed; this function converts to 1-indexed
+    for human display.
+    """
+    if isinstance(att, FileAttachment):
+        if att.selection is None:
+            return None
+        start_line = att.selection.start[0] + 1
+        end_line = att.selection.end[0] + 1
+        if start_line == end_line:
+            return f"Line {start_line}"
+        return f"Lines {start_line}-{end_line}"
+
+    if isinstance(att, NotebookAttachment):
+        if not att.cells:
+            return None
+        parts: list[str] = []
+        for cell in att.cells:
+            if cell.selection is not None:
+                start_line = cell.selection.start[0] + 1
+                end_line = cell.selection.end[0] + 1
+                if start_line == end_line:
+                    parts.append(f"{cell.id} (line {start_line})")
+                else:
+                    parts.append(f"{cell.id} (lines {start_line}-{end_line})")
+            else:
+                parts.append(cell.id)
+        return f"Notebook cells: {', '.join(parts)}"
+
+    return None
+
+
 class JaiAcpClient(Client):
     """
     The default ACP client. The client should be stored as a class attribute on each
@@ -226,6 +262,7 @@ class JaiAcpClient(Client):
                                 name=Path(att_value).name if att_value else "<attachment>",
                                 type="resource_link",
                                 mime_type=mime_type,
+                                description=_build_attachment_description(att),
                             )
                         )
 

@@ -4,9 +4,17 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 from acp.schema import ResourceContentBlock, TextContentBlock
-from jupyterlab_chat.models import FileAttachment, NotebookAttachment
+from jupyterlab_chat.models import (
+    AttachmentSelection,
+    FileAttachment,
+    NotebookAttachment,
+    NotebookAttachmentCell,
+)
 
-from jupyter_ai_acp_client.default_acp_client import JaiAcpClient
+from jupyter_ai_acp_client.default_acp_client import (
+    JaiAcpClient,
+    _build_attachment_description,
+)
 
 
 SESSION_ID = "sess-1"
@@ -215,3 +223,149 @@ class TestPromptAndReplyContentBlocks:
         blocks = conn.prompt.call_args.kwargs["prompt"]
         assert blocks[1].uri == "../../../etc/passwd"
 
+    async def test_file_selection_produces_description(self):
+        """File with selection gets human-readable line range in description."""
+        client, conn, _ = _make_client_and_persona()
+
+        att = FileAttachment(
+            value="main.py",
+            selection=AttachmentSelection(start=(5, 0), end=(10, 0), content="..."),
+        )
+        await client.prompt_and_reply(
+            session_id=SESSION_ID,
+            prompt="check",
+            attachments=[att],
+            root_dir="/tmp",
+        )
+
+        blocks = conn.prompt.call_args.kwargs["prompt"]
+        assert blocks[1].description == "Lines 6-11"
+
+    async def test_notebook_cells_produce_description(self):
+        """Notebook with cells gets cell IDs in description."""
+        client, conn, _ = _make_client_and_persona()
+
+        att = NotebookAttachment(
+            value="nb.ipynb",
+            cells=[
+                NotebookAttachmentCell(id="abc", input_type="code"),
+                NotebookAttachmentCell(id="def", input_type="markdown"),
+            ],
+        )
+        await client.prompt_and_reply(
+            session_id=SESSION_ID,
+            prompt="check",
+            attachments=[att],
+            root_dir="/tmp",
+        )
+
+        blocks = conn.prompt.call_args.kwargs["prompt"]
+        assert blocks[1].description == "Notebook cells: abc, def"
+
+    async def test_no_selection_no_description(self):
+        """File without selection gets None description."""
+        client, conn, _ = _make_client_and_persona()
+
+        await client.prompt_and_reply(
+            session_id=SESSION_ID,
+            prompt="check",
+            attachments=[FileAttachment(value="plain.py")],
+            root_dir="/tmp",
+        )
+
+        blocks = conn.prompt.call_args.kwargs["prompt"]
+        assert blocks[1].description is None
+
+
+class TestAttachmentDescription:
+    """Tests for _build_attachment_description helper."""
+
+    def test_file_no_selection(self):
+        att = FileAttachment(value="main.py")
+        assert _build_attachment_description(att) is None
+
+    def test_file_single_line_selection(self):
+        att = FileAttachment(
+            value="main.py",
+            selection=AttachmentSelection(start=(6, 0), end=(6, 15), content="x = 1"),
+        )
+        assert _build_attachment_description(att) == "Line 7"
+
+    def test_file_multi_line_selection(self):
+        att = FileAttachment(
+            value="main.py",
+            selection=AttachmentSelection(start=(5, 0), end=(10, 0), content="..."),
+        )
+        assert _build_attachment_description(att) == "Lines 6-11"
+
+    def test_notebook_no_cells(self):
+        att = NotebookAttachment(value="nb.ipynb")
+        assert _build_attachment_description(att) is None
+
+    def test_notebook_cells_without_selection(self):
+        att = NotebookAttachment(
+            value="nb.ipynb",
+            cells=[
+                NotebookAttachmentCell(id="abc", input_type="code"),
+                NotebookAttachmentCell(id="def", input_type="markdown"),
+            ],
+        )
+        assert _build_attachment_description(att) == "Notebook cells: abc, def"
+
+    def test_notebook_cell_with_single_line_selection(self):
+        att = NotebookAttachment(
+            value="nb.ipynb",
+            cells=[
+                NotebookAttachmentCell(
+                    id="abc",
+                    input_type="code",
+                    selection=AttachmentSelection(start=(4, 0), end=(4, 10), content="x"),
+                ),
+            ],
+        )
+        assert _build_attachment_description(att) == "Notebook cells: abc (line 5)"
+
+    def test_notebook_cell_with_multi_line_selection(self):
+        att = NotebookAttachment(
+            value="nb.ipynb",
+            cells=[
+                NotebookAttachmentCell(
+                    id="abc",
+                    input_type="code",
+                    selection=AttachmentSelection(start=(0, 0), end=(2, 5), content="..."),
+                ),
+            ],
+        )
+        assert _build_attachment_description(att) == "Notebook cells: abc (lines 1-3)"
+
+    def test_notebook_mixed_cells(self):
+        """Some cells with selection, some without."""
+        att = NotebookAttachment(
+            value="nb.ipynb",
+            cells=[
+                NotebookAttachmentCell(
+                    id="abc",
+                    input_type="code",
+                    selection=AttachmentSelection(start=(0, 0), end=(2, 0), content="..."),
+                ),
+                NotebookAttachmentCell(id="def", input_type="markdown"),
+                NotebookAttachmentCell(
+                    id="ghi",
+                    input_type="code",
+                    selection=AttachmentSelection(start=(4, 0), end=(7, 0), content="..."),
+                ),
+            ],
+        )
+        assert _build_attachment_description(att) == "Notebook cells: abc (lines 1-3), def, ghi (lines 5-8)"
+
+    def test_notebook_empty_cells_list(self):
+        att = NotebookAttachment(value="nb.ipynb", cells=[])
+        assert _build_attachment_description(att) is None
+
+    def test_zero_indexed_to_one_indexed(self):
+        """Verifies 0-indexed CodeMirror positions become 1-indexed."""
+        att = FileAttachment(
+            value="main.py",
+            selection=AttachmentSelection(start=(0, 0), end=(0, 5), content="x"),
+        )
+        assert _build_attachment_description(att) == "Line 1"
