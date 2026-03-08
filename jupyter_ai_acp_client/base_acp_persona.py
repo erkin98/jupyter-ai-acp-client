@@ -20,7 +20,14 @@ from .default_acp_client import JaiAcpClient
 
 
 def _reconstruct_selection(raw: dict) -> AttachmentSelection | None:
-    """Reconstruct an AttachmentSelection, converting CRDT list artifacts to tuples."""
+    """Reconstruct an AttachmentSelection, converting CRDT list artifacts to tuples.
+
+    The None guard below also defends against a latent pycrdt bug where nested
+    Python tuples are silently dropped to None during CRDT storage
+    (https://github.com/y-crdt/pycrdt/issues/368).  JS-created attachments are
+    unaffected because JS arrays survive as lists, but any future Python-side
+    ``set_attachment()`` call would hit this.
+    """
     start = raw.get("start")
     end = raw.get("end")
     content = raw.get("content")
