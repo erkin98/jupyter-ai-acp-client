@@ -260,7 +260,7 @@ class TestPromptAndReplyContentBlocks:
         )
 
         blocks = conn.prompt.call_args.kwargs["prompt"]
-        assert blocks[1].description == "Notebook cells: abc, def"
+        assert blocks[1].description == 'Selected cells: Cell "abc", Cell "def"'
 
     async def test_no_selection_no_description(self):
         """File without selection gets None description."""
@@ -310,7 +310,7 @@ class TestAttachmentDescription:
                 NotebookAttachmentCell(id="def", input_type="markdown"),
             ],
         )
-        assert _build_attachment_description(att) == "Notebook cells: abc, def"
+        assert _build_attachment_description(att) == 'Selected cells: Cell "abc", Cell "def"'
 
     def test_notebook_cell_with_single_line_selection(self):
         att = NotebookAttachment(
@@ -323,7 +323,7 @@ class TestAttachmentDescription:
                 ),
             ],
         )
-        assert _build_attachment_description(att) == "Notebook cells: abc (line 5)"
+        assert _build_attachment_description(att) == 'Selected cells: Cell "abc" (line 5)'
 
     def test_notebook_cell_with_multi_line_selection(self):
         att = NotebookAttachment(
@@ -336,7 +336,7 @@ class TestAttachmentDescription:
                 ),
             ],
         )
-        assert _build_attachment_description(att) == "Notebook cells: abc (lines 1-3)"
+        assert _build_attachment_description(att) == 'Selected cells: Cell "abc" (lines 1-3)'
 
     def test_notebook_mixed_cells(self):
         """Some cells with selection, some without."""
@@ -356,7 +356,7 @@ class TestAttachmentDescription:
                 ),
             ],
         )
-        assert _build_attachment_description(att) == "Notebook cells: abc (lines 1-3), def, ghi (lines 5-8)"
+        assert _build_attachment_description(att) == 'Selected cells: Cell "abc" (lines 1-3), Cell "def", Cell "ghi" (lines 5-8)'
 
     def test_notebook_empty_cells_list(self):
         att = NotebookAttachment(value="nb.ipynb", cells=[])

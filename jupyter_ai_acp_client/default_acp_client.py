@@ -87,12 +87,12 @@ def _build_attachment_description(
                 start_line = cell.selection.start[0] + 1
                 end_line = cell.selection.end[0] + 1
                 if start_line == end_line:
-                    parts.append(f"{cell.id} (line {start_line})")
+                    parts.append(f'Cell "{cell.id}" (line {start_line})')
                 else:
-                    parts.append(f"{cell.id} (lines {start_line}-{end_line})")
+                    parts.append(f'Cell "{cell.id}" (lines {start_line}-{end_line})')
             else:
-                parts.append(cell.id)
-        return f"Notebook cells: {', '.join(parts)}"
+                parts.append(f'Cell "{cell.id}"')
+        return f"Selected cells: {', '.join(parts)}"
 
     return None
 
